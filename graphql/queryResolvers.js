@@ -89,7 +89,7 @@ let Query = {
             let addedProductsArray = []
             await fireStore.collection('Added Products Collection').get().then( currentSnapshot => {
                 currentSnapshot.forEach( product => {
-                    addedProductsArray.push( product.data() )
+                    addedProductsArray.push( { ...product.data(), productID: product.id } )
                 })
                 console.log( addedProductsArray )
             } )
@@ -105,14 +105,14 @@ let Query = {
 
     GetSelectedProductDetails: async function ( parent, args, ctx, info ) {
         try {
-            let myArray = []
+            let productsArray = []
             let selectedProduct = await fireStore.collection('Added Products Collection').where('name', '==', args.productName).get()
             if( !selectedProduct.empty ) {
                 selectedProduct.forEach( matchingProduct => {
                     //console.log( matchingProduct.data() )
-                    myArray.push( matchingProduct.data() )
+                    productsArray.push( matchingProduct.data() )
                 })
-                return myArray[0]
+                return productsArray[0]
             }
             else {
                 return null
@@ -123,6 +123,27 @@ let Query = {
             throw new Error(`failed to fetch details of selected product due to error, ${ error.code }: ${ error.message }`)
         }
 
+
+    }, // end of get selected product details.
+
+
+    FetchUserCartItems: async function ( parent, args, ctx, info ) {
+        try {
+            let userCartsArray = []
+            let currentUser = await firebaseAuth.currentUser
+            console.log( currentUser.email )
+            await fireStore.collection('Carts Collection').where('userEmail', '==', currentUser.email).get().then( currentSnapshot => {
+                currentSnapshot.forEach( cartItem => {
+                    userCartsArray.push( { ...cartItem.data(), cartItemID: cartItem.id } )
+                })
+                //console.log( userCartsArray )
+            } )
+            //console.log(`info ===${ info }`)
+            return userCartsArray
+        }
+        catch (error) {
+            throw new Error(`failed to fetch products due to error. ${ error.code }: ${ error.message }`)
+        }
 
     }
 

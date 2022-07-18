@@ -29,6 +29,7 @@ const typeDefs = gql `
 
 
     type Product {
+        productID: ID!
         name: String!
         manufacturer: String!
         productType: String!
@@ -45,6 +46,7 @@ const typeDefs = gql `
 
 
     type CartItem {
+        cartItemID: ID!
         name: String!
         price: String!
         coverPhotoUrl: String!
@@ -53,8 +55,6 @@ const typeDefs = gql `
 
     }
 
-
-   
 
     # inputs
     input registerNewUserInputType {
@@ -92,6 +92,7 @@ const typeDefs = gql `
     }
 
 
+
     # Queries.
     type Query {
         FetchAllUsers: [ User ]
@@ -102,6 +103,7 @@ const typeDefs = gql `
         FetchProductImages( productName: String!, fileName:String! ) : String!
         FetchAllProducts: [ Product ] 
         GetSelectedProductDetails( productName: String! ) : Product
+        FetchUserCartItems: [ CartItem ]
 
     }
 
@@ -116,7 +118,8 @@ const typeDefs = gql `
         UpdateUserPassword( newPassword: String! ): String!
         UpdateUserProfile( displayName: String!, photoUrl: String! ): String!
         AddNewProduct( addNewProductInput: addNewProductInputType ) : Product!
-        AddProductToCart( addToCartInputType: addToCartInputType) : CartItem!
+        AddProductToCart( addToCartInputType: addToCartInputType ) : CartItem!
+        AddItemsPurchasedSuccessfully( cartItemID: String! ): CartItem!
 
     }
 

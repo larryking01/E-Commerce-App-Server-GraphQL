@@ -155,7 +155,7 @@ let Mutation = {
         
             }
 
-            let newProduct = await fireStore.collection('Added Products Collection').add( product )
+            await fireStore.collection('Added Products Collection').add( product )
             return product
 
         }
@@ -168,29 +168,57 @@ let Mutation = {
 
     AddProductToCart: async function ( parent, args, ctx, info ) {
         try {
-            let currentUser = firebaseAuth.currentUser
+            let currentUser = await firebaseAuth.currentUser
             if ( currentUser ) {
                 let newCartItem = {
                     name: args.addToCartInputType.name,
                     price: args.addToCartInputType.price,
                     coverPhotoUrl: args.addToCartInputType.coverPhotoUrl,
                     quantity: args.addToCartInputType.quantity,
-                    user: currentUser.email
+                    userEmail: currentUser.email
                 }
-
                 await fireStore.collection('Carts Collection').add( newCartItem )
                 return newCartItem
-
             } 
             else {
                 console.log('no current user')
                 return null
             }
-
-
         }
         catch( error ) {
             throw new Error(`couldn't add item to cart due to error, ${ error.code }: ${ error.message }`)
+        }
+    }, // end of add products to cart.
+
+
+    AddItemsPurchasedSuccessfully: async function( parent, args, ctx, info ) {
+        try {
+            let currentUser = await firebaseAuth.currentUser
+            let purchasedItem = await fireStore.collection( 'Carts Collection' ).doc( args.purchasedItemID )
+            purchasedItem.get().then( document => {
+                if( document.exists ) {
+                    // add to the purchased items collection
+                    let purchasedItem = {
+                        name: document.data().name,
+                        price: document.data().price,
+                        coverPhotoUrl: document.data().coverPhotoUrl,
+                        quantity: document.data().quantity,
+                        userEmail: currentUser.email    
+                    }
+                    fireStore.collection('Successfully Purchased Products Collection').add( purchasedItem )
+                    .then( doc => {
+                        return doc.data() 
+                    })
+                    
+                }
+                else {
+                    throw new Error('no matching document')
+                }
+            })
+
+        }
+        catch ( error ) {
+
         }
 
     }
