@@ -1,4 +1,4 @@
-const { UserInputError } = require('apollo-server')
+const { UserInputError, AuthenticationError } = require('apollo-server')
 const firebaseAuth = require('../firebase/firebaseConfig.js').firebaseAuth
 const fireStore = require('../firebase/firebaseConfig.js').fireStore
 const firebaseStorage = require('../firebase/firebaseConfig.js').firebaseStorage
@@ -11,18 +11,29 @@ const firebaseStorage = require('../firebase/firebaseConfig.js').firebaseStorage
 let Mutation = {
     RegisterNewUser: async function ( parent, args, ctx, info) {
         try {
-            let newUser = await firebaseAuth.createUserWithEmailAndPassword( args.registerNewUserInput.email, args.registerNewUserInput.password )
-            let newlyAddedUser = {
-                username: args.registerNewUserInput.username,
-                email: newUser.user.email,
-                createdAt: new Date().toLocaleDateString() + ' @ ' + new Date().toLocaleTimeString()
-            }
-            return newlyAddedUser
+            let existingUser = firebaseAuth.currentUser
+            if ( !existingUser ) {
+                let newUser = await firebaseAuth.createUserWithEmailAndPassword( args.registerNewUserInput.email, args.registerNewUserInput.password )
+                return {
+                    username: args.registerNewUserInput.username,
+                    email: newUser.user.email,
+                    createdAt: new Date().toLocaleDateString() + ' @ ' + new Date().toLocaleTimeString()
+                }
+           }
+           else {
+                throw new AuthenticationError('a user is currently logged in....you need to log out first')
+           }
            
         }
         catch ( error ) {
-            // console.log(`failed to create new user due to error: ${ error }`)
-            throw new UserInputError(`failed to create new user due to error: ${ error }`)
+            switch( error.code ) {
+                case 'auth/network-request-failed':
+                    throw new AuthenticationError('Server could not be reached. Please make sure you have a good internet connection and try again.')
+                case 'auth/invalid-email':
+                    throw new AuthenticationError('Your email is invalid. Please enter a valid email and try again')
+                default:
+                    throw new AuthenticationError(`${ error.message }`)
+            }
         }
 
     }, // end of register new user.
@@ -30,12 +41,30 @@ let Mutation = {
 
     SignInUser: async function( parent, args, ctx, info ) {
         try {
-            let signedInUser = await firebaseAuth.signInWithEmailAndPassword( args.email, args.password )
-            return `user signed in with email ${ signedInUser.user.email }`
-
+            let existingUser = await firebaseAuth.currentUser
+            if( !existingUser ) {
+                let signedInUser = await firebaseAuth.signInWithEmailAndPassword( args.email, args.password )
+                return {
+                    email: signedInUser.user.email
+                }    
+            } 
+            else {
+                throw new AuthenticationError(`A user is already logged in... you need to logout first`)
+            }
         }
         catch( error ) {
-            throw new UserInputError(`failed to sign in user due to error: ${ error.code } : ${ error.message }`)
+            switch( error.code ) {
+                case 'auth/network-request-failed':
+                    throw new AuthenticationError('Server could not be reached. Please make sure you have a good internet connection and try again.')
+                case 'auth/invalid-email':
+                    throw new AuthenticationError('Your email is invalid. Please enter a valid email and try again')
+                case 'auth/wrong-password':
+                    throw new AuthenticationError('Incorrect password entered. Please enter the correct password and try again')
+                case 'auth/user-not-found':
+                    throw new AuthenticationError('The entered email does not exist. Please enter an existing email or sign up to create your new account')
+                default:
+                    throw new AuthenticationError(`${ error.message }`)
+            }
         }
 
     }, //end of sign in.
@@ -72,7 +101,7 @@ let Mutation = {
             }
         }
         catch ( error ) {
-            return `failed to send verification link user due to error: ${ error.code } : ${ error.message }`
+            throw new Error (`failed to send verification link user due to error: ${ error.code } : ${ error.message }`)
         }
 
     }, // end of verify user email.
@@ -91,7 +120,7 @@ let Mutation = {
             }
         }
         catch ( error ) {
-            throw new UserInputError(`failed to update user email due to error: ${ error.code }: ${ error.message }`)
+            throw new Error(`failed to update user email due to error: ${ error.code }: ${ error.message }`)
         }
 
     }, //
@@ -145,6 +174,7 @@ let Mutation = {
                 productType: args.addNewProductInput.productType,
                 gender: args.addNewProductInput.gender,
                 price: args.addNewProductInput.price,
+                collectionName: args.addNewProductInput.collectionName,
                 dateAdded: new Date().toLocaleDateString() + ' @ ' + new Date().toLocaleTimeString(),
                 yearReleased: args.addNewProductInput.yearReleased,
                 coverPhotoUrl: args.addNewProductInput.coverPhotoUrl,
@@ -155,7 +185,7 @@ let Mutation = {
         
             }
 
-            await fireStore.collection('Added Products Collection').add( product )
+            await fireStore.collection( args.addNewProductInput.collectionName ).add( product )
             return product
 
         }
@@ -171,22 +201,24 @@ let Mutation = {
             let currentUser = await firebaseAuth.currentUser
             if ( currentUser ) {
                 let newCartItem = {
+                    cartItemID: args.addToCartInputType.cartItemID,
                     name: args.addToCartInputType.name,
                     price: args.addToCartInputType.price,
                     coverPhotoUrl: args.addToCartInputType.coverPhotoUrl,
                     quantity: args.addToCartInputType.quantity,
-                    userEmail: currentUser.email
+                    size: args.addToCartInputType.size,
+                    userEmail: currentUser.email,
+                    color: args.addToCartInputType.color
                 }
                 await fireStore.collection('Carts Collection').add( newCartItem )
                 return newCartItem
             } 
             else {
-                console.log('no current user')
-                return null
+                console.log('cannot add item to cart as no current user was found')
             }
         }
         catch( error ) {
-            throw new Error(`couldn't add item to cart due to error, ${ error.code }: ${ error.message }`)
+            throw new Error(`couldn't add item to cart due to error, ${ error.message }`)
         }
     }, // end of add products to cart.
 
@@ -221,11 +253,26 @@ let Mutation = {
 
         }
 
+    },
+
+    SubmitComplaint: async function( parent, args, ctx, info ) {
+        try {
+            let complaint = {
+                userEmail: args.complaintDetails.userEmail,
+                query: args.complaintDetails.query,
+                subject: args.complaintDetails.subject,
+                description: args.complaintDetails.description
+            }
+
+            await fireStore.collection('User Submitted Complaints').add( complaint )
+            return complaint
+
+        }
+        catch ( error ) {
+            throw new Error(`failed to submit complaint due to error: ${ error.message }`)
+        }
+
     }
-
-
-
-
 
 }
 

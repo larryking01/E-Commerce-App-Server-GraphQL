@@ -29,12 +29,13 @@ const typeDefs = gql `
 
 
     type Product {
-        productID: ID!
+        productID: ID
         name: String!
         manufacturer: String!
         productType: String!
         gender: String!
         price: String!
+        collectionName: String!
         dateAdded: String!
         yearReleased: String!
         coverPhotoUrl: String!
@@ -51,8 +52,19 @@ const typeDefs = gql `
         price: String!
         coverPhotoUrl: String!
         quantity: Int!
+        size: Int!
         userEmail: String
+        color: String
+        
 
+    }
+
+
+    type Complaint {
+        userEmail: String!
+        query: String!
+        subject: String!
+        description: String!
     }
 
 
@@ -71,6 +83,7 @@ const typeDefs = gql `
         productType: String!
         gender: String!
         price: String!
+        collectionName: String!
         dateAdded: String
         yearReleased: String
         coverPhotoUrl: String!
@@ -83,12 +96,23 @@ const typeDefs = gql `
 
 
     input addToCartInputType {
+        cartItemID: String!
         name: String!
         price: String!
         coverPhotoUrl: String!
         quantity: Int!
-        userEmail: String
+        size: Int!
+        color: String
+        userEmail: String!
 
+    }
+
+
+    input complaintInputType {
+        userEmail: String!
+        query: String!
+        subject: String!
+        description: String!
     }
 
 
@@ -97,13 +121,14 @@ const typeDefs = gql `
     type Query {
         FetchAllUsers: [ User ]
         FetchParticularUser( email: String! ): User
-        GetCurrentLoggedInUser: String!
+        GetCurrentLoggedInUser: User
         CheckUserVerifiedStatus: String!
         FetchCurrentUserDetails: User
         FetchProductImages( productName: String!, fileName:String! ) : String!
-        FetchAllProducts: [ Product ] 
-        GetSelectedProductDetails( productName: String! ) : Product
+        FetchAllProducts( collectionName: String! ): [ Product ] 
+        GetSelectedProductDetails( collectionName: String!, productName: String! ) : Product
         FetchUserCartItems: [ CartItem ]
+        FetchParticularUserCartItem( cartItemName: String! ): [ CartItem ]
 
     }
 
@@ -111,20 +136,22 @@ const typeDefs = gql `
     # Mutations.
     type Mutation {
         RegisterNewUser( registerNewUserInput: registerNewUserInputType ): User!
-        SignInUser( email: String!, password: String! ): String!
+        SignInUser( email: String!, password: String! ): User! 
         Logout: String!
         VerifyUserViaEmail: String!
         UpdateUserEmail( newEmail: String! ): String!
         UpdateUserPassword( newPassword: String! ): String!
         UpdateUserProfile( displayName: String!, photoUrl: String! ): String!
         AddNewProduct( addNewProductInput: addNewProductInputType ) : Product!
-        AddProductToCart( addToCartInputType: addToCartInputType ) : CartItem!
+        AddProductToCart( addToCartInputType: addToCartInputType ) : CartItem
         AddItemsPurchasedSuccessfully( cartItemID: String! ): CartItem!
+        SubmitComplaint( complaintDetails: complaintInputType!) : Complaint!
 
     }
 
-
 `
+
+
 
 
 // resolvers.
@@ -140,6 +167,9 @@ const server = new ApolloServer({
     typeDefs,
     resolvers,
     csrfPrevention: true,
+    cors: {
+        origin: '*'
+    },
     introspection: true,
     plugins: [
         ApolloServerPluginLandingPageGraphQLPlayground()

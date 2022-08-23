@@ -1,7 +1,7 @@
 const firebaseAuth = require('../firebase/firebaseConfig.js').firebaseAuth
 const fireStore = require('../firebase/firebaseConfig.js').fireStore
 const firebaseStorage = require('../firebase/firebaseConfig.js').firebaseStorage
-const { UserInputError } = require('apollo-server')
+const { UserInputError, AuthenticationError } = require('apollo-server')
 
 
 
@@ -11,10 +11,12 @@ let Query = {
         try{
             let currentUser = await firebaseAuth.currentUser
             if( currentUser ) {
-                return `you are currently logged in as ${ currentUser.email }`
+                return {
+                    email: currentUser.email
+                }
             }
             else {
-                return 'no user is logged in currently'
+                return null
             }
         }
         catch ( error ) {
@@ -74,27 +76,24 @@ let Query = {
         try {
             let imageUrl = await firebaseStorage.ref().child(`Product Images/${ args.productName }/${ args.fileName }`).getDownloadURL()
             return `download url === ${ imageUrl }`
-
         }
         catch( error ) {
             throw new Error (`failed to download image due to error; ${ error.code }: ${ error.message } `) 
- 
         }
 
     }, // end of fetch product images.
 
 
-    FetchAllProducts: async function ( ) {
+    FetchAllProducts: async function ( parent, args, ctx, info ) {
         try {
             let addedProductsArray = []
-            await fireStore.collection('Added Products Collection').get().then( currentSnapshot => {
+            await fireStore.collection( args.collectionName ).get().then( currentSnapshot => {
                 currentSnapshot.forEach( product => {
                     addedProductsArray.push( { ...product.data(), productID: product.id } )
                 })
                 console.log( addedProductsArray )
             } )
             return addedProductsArray
-
         }
         catch (error) {
             throw new Error(`failed to fetch products due to error. ${ error.code }: ${ error.message }`)
@@ -106,24 +105,21 @@ let Query = {
     GetSelectedProductDetails: async function ( parent, args, ctx, info ) {
         try {
             let productsArray = []
-            let selectedProduct = await fireStore.collection('Added Products Collection').where('name', '==', args.productName).get()
+            let selectedProduct = await fireStore.collection( args.collectionName ).where('name', '==', args.productName).get()
             if( !selectedProduct.empty ) {
                 selectedProduct.forEach( matchingProduct => {
-                    //console.log( matchingProduct.data() )
                     productsArray.push( matchingProduct.data() )
+                    console.log( productsArray[0] )
                 })
                 return productsArray[0]
             }
             else {
                 return null
             }
-            
         }
         catch( error ) {
             throw new Error(`failed to fetch details of selected product due to error, ${ error.code }: ${ error.message }`)
         }
-
-
     }, // end of get selected product details.
 
 
@@ -131,15 +127,46 @@ let Query = {
         try {
             let userCartsArray = []
             let currentUser = await firebaseAuth.currentUser
-            console.log( currentUser.email )
-            await fireStore.collection('Carts Collection').where('userEmail', '==', currentUser.email).get().then( currentSnapshot => {
-                currentSnapshot.forEach( cartItem => {
-                    userCartsArray.push( { ...cartItem.data(), cartItemID: cartItem.id } )
+            // console.log( currentUser.email )
+            if ( currentUser ) { 
+                await fireStore.collection('Carts Collection').where('userEmail', '==', currentUser.email).get().then( currentSnapshot => {
+                    currentSnapshot.forEach( cartItem => {
+                        userCartsArray.push( { ...cartItem.data(), cartItemID: cartItem.id } )
+                    })
+                    //console.log( userCartsArray )
+                } )
+                //console.log(`info ===${ info }`)
+                return userCartsArray
+            } 
+            else {
+                console.log('no current user logged in')
+                return null
+            }
+        }
+        catch (error) {
+            throw new Error(`failed to fetch products due to error. ${ error.code }: ${ error.message }`)
+        }
+
+    },
+
+
+    FetchParticularUserCartItem: async function( parent, args, ctx, info ) { 
+        try {
+            let selectedCartItemArray = []
+            let currentUser = await firebaseAuth.currentUser
+            if( currentUser ) {
+                await fireStore.collection('Carts Collection').where('userEmail', '==', currentUser.email ).where('name', '==', args.cartItemName ).get().then( currentSnapshot => {
+                    currentSnapshot.forEach( selectedCartItem => {
+                        selectedCartItemArray.push( selectedCartItem.data() )
+                    })
                 })
-                //console.log( userCartsArray )
-            } )
-            //console.log(`info ===${ info }`)
-            return userCartsArray
+
+                return selectedCartItemArray
+            }
+            else {
+                console.log('no current user logged in')
+                return null
+            }
         }
         catch (error) {
             throw new Error(`failed to fetch products due to error. ${ error.code }: ${ error.message }`)
