@@ -272,8 +272,33 @@ let Mutation = {
             throw new Error(`failed to submit complaint due to error: ${ error.message }`)
         }
 
-    }
+    },
 
+    DeleteCartItem: async function( parent, args, ctx, info ) {
+        try {
+            let currentUser = await firebaseAuth.currentUser
+            if( currentUser ) {
+                await fireStore.collection('Carts Collection').where('userEmail', '==', currentUser.email ).where('name', '==', args.cartItemName)
+                .get().then( currentSnapshot => {
+                    currentSnapshot.forEach( deleteCartItem => {
+                        console.log(`matching item found, ${ deleteCartItem.id }`)
+                        fireStore.collection('Carts Collection').doc( deleteCartItem.id ).delete().then(() => {
+                            console.log(`${ deleteCartItem.id } deleted successfully`)
+                        })
+                        .catch( error => console.log(`failed to delete due to error, ${ error }`))
+                        return `returned matching item found`
+                    })
+                })
+            }
+            else {
+                console.log(`cannot complete action. no user found`)
+                return `cannot complete action. no user found`
+            }
+        }
+        catch ( error ) {
+            throw new Error(`failed to delete cart item due to error: ${ error.message }`)
+        }
+    }
 }
 
 
