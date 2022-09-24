@@ -12,7 +12,7 @@ let Query = {
             let currentUser = await firebaseAuth.currentUser
             if( currentUser ) {
                 return {
-                    email: currentUser.email
+                    email: currentUser.email,
                 }
             }
             else {
