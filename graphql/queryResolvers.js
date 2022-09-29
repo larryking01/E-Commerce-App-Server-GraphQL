@@ -127,15 +127,12 @@ let Query = {
         try {
             let userCartsArray = []
             let currentUser = await firebaseAuth.currentUser
-            // console.log( currentUser.email )
             if ( currentUser ) { 
                 await fireStore.collection('Carts Collection').where('userEmail', '==', currentUser.email).get().then( currentSnapshot => {
                     currentSnapshot.forEach( cartItem => {
                         userCartsArray.push( { ...cartItem.data(), cartItemID: cartItem.id } )
                     })
-                    //console.log( userCartsArray )
                 } )
-                //console.log(`info ===${ info }`)
                 return userCartsArray
             } 
             else {
@@ -146,7 +143,6 @@ let Query = {
         catch (error) {
             throw new Error(`failed to fetch products due to error. ${ error.code }: ${ error.message }`)
         }
-
     },
 
 
