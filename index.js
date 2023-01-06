@@ -147,6 +147,7 @@ const typeDefs = gql `
         AddItemsPurchasedSuccessfully( cartItemID: String! ): CartItem!
         SubmitComplaint( complaintDetails: complaintInputType!) : Complaint!
         DeleteCartItem( cartItemName: String! ) : String
+        Payment: String!
 
     }
 

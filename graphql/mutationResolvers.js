@@ -3,6 +3,9 @@ const firebaseAuth = require('../firebase/firebaseConfig.js').firebaseAuth
 const fireStore = require('../firebase/firebaseConfig.js').fireStore
 const firebaseStorage = require('../firebase/firebaseConfig.js').firebaseStorage
 
+// stripe.
+const stripe = require('stripe')('sk_test_51LwPglHwow1F0TNq45A6ly1U5ztHftbQHTuVteKFZaxojo3yffpO2aTSxQoUNu2hsTLs5OKXbc2XT2Ph3daKpl1I00gz7mNeHN')
+
 
 
 
@@ -298,8 +301,27 @@ let Mutation = {
         catch ( error ) {
             throw new Error(`failed to delete cart item due to error: ${ error.message }`)
         }
-    }
-}
 
+    }, // end of delete cart item mutation.
+
+
+    Payment: async function( parent, args, ctx, info ) {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: 2000,
+            currency: "usd",
+            automatic_payment_methods: {
+              enabled: true,
+            },
+          });
+        
+          return 'stripe successful'
+
+    }
+
+
+
+
+
+}
 
 module.exports = Mutation
